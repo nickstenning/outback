@@ -1,0 +1,19 @@
+#!/usr/local/bin/ruby
+
+case $*.length
+when 2
+  script = $<.path
+  command = $*.pop
+else
+  puts "Usage: #{File.basename($0)} <filename> <command> or ./outbackfile.sh <command>"
+  exit 1
+end
+
+$: << File.expand_path(File.dirname(__FILE__) + '/../lib')
+
+require 'outback'
+
+script = open(script).read.sub(/^\#\!.+$/, '')
+
+ob = Outback::Command.new(script)
+ob.run(command.intern)
