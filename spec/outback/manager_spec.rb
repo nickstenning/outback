@@ -1,4 +1,5 @@
 require File.dirname(__FILE__) + '/../spec_helper'
+require 'yaml'
 
 describe Outback::Manager do
   
@@ -55,6 +56,7 @@ describe Outback::Manager do
       @task1.stub!(:rollback)
       @task1.should_receive(:rollout).and_return(1)
       @task2.should_not_receive(:rollout)
+      @task2.should_not_receive(:rollback)
       lambda { @obm.rollout }.should raise_error(Outback::Error)
     end
     
@@ -91,8 +93,8 @@ describe Outback::Manager do
         @obm.rollout
       rescue Outback::Error
         @obm.should have(2).errors
-        @obm.errors.shift.should == [:rollout, 1, "", "Error message"]
-        @obm.errors.shift.should == [:rollback, 3, "", "Error while rolling back"]    
+        @obm.errors[0].should == [:rollout, 1, "", "Error message"]
+        @obm.errors[1].should == [:rollback, 3, "", "Error while rolling back"]    
       end
     end
     
@@ -110,12 +112,14 @@ describe Outback::Manager do
   
   describe "(with #workdir set)" do
     
-    it "should execute all tasks in the workdir" do
+    before do
       @obm.tasks << Outback::ShellTask.new('pwd', 'pwd')
       @obm.workdir = '/tmp'
+    end
+    
+    it "should execute all tasks in the workdir" do
       @obm.rollout
       @obm.status[2] == "/tmp"
     end
-    
   end
 end
