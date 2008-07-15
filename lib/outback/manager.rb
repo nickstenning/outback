@@ -9,6 +9,7 @@ module Outback
     
     attr_reader :tasks, :position
     attr_accessor :workdir
+    attr_writer :watcher
   
     def initialize
       @tasks = []
@@ -46,7 +47,9 @@ module Outback
     
     def attempt( task )
       method = {ROLLOUT => :rollout!, ROLLBACK => :rollback!}[@direction]
-      task.send(method)
+      ret = task.send(method)
+      @watcher.notify(task) if @watcher
+      return ret
     end
     
     def current_task
@@ -73,7 +76,7 @@ module Outback
     def fail
       case @direction
       when ROLLOUT
-        rollback_from current_task
+        #rollback_from current_task
         raise Error, "Could not rollout task #{current_task}, attempting rollback."
       when ROLLBACK
         raise TransactionError, "Could not rollback task #{current_task}, aborting."

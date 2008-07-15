@@ -63,16 +63,6 @@ describe Outback::Manager do
       lambda { @obm.rollback! }.should raise_error(Outback::TransactionError)
     end
     
-    it "should rollback previously rolled-out tasks if a rollout fails" do
-      @task1.should_receive(:rollout!).ordered.and_return(false)
-      @task2.should_not_receive(:rollout!)
-      @task1.should_receive(:rollback!).ordered
-      @task2.should_not_receive(:rollback!)
-      begin 
-        @obm.rollout!
-      rescue Outback::Error
-      end
-    end
   end
   
   describe "(with #workdir set)" do
@@ -88,6 +78,26 @@ describe Outback::Manager do
     it "should set the workdir of each of its tasks if it is currently nil" do
       @task1.workdir.should == "/tmp"
       @task2.workdir.should == "/nonexistent"
+    end
+    
+  end
+  
+  describe "(with #watcher set)" do
+    
+    before do
+      @task1 = Outback::ShellTask.new("pwd", "")
+      @task2 = Outback::ShellTask.new("echo 'hello'", "")
+      require 'tempfile'
+      @obm.workdir = Dir.tmpdir
+      @obm.add_tasks(@task1, @task2)
+      @watcher = mock("watcher")
+      @obm.watcher = @watcher
+    end
+    
+    it "should call the watcher's #notify method after every task rollout/rollback with the task as an argument" do
+      @watcher.should_receive(:notify).ordered.with(@task1)
+      @watcher.should_receive(:notify).ordered.with(@task2)
+      @obm.rollout!
     end
     
   end
