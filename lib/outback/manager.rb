@@ -1,82 +1,69 @@
 require 'yaml'
-require 'tempfile'
 
 module Outback
   
   class Manager
     
-    attr_reader :tasks, :status, :errors, :position
-    attr_writer :logger
+    ROLLOUT = 1
+    ROLLBACK = -1
+    
+    attr_reader :tasks, :position
     attr_accessor :workdir
   
     def initialize
       @tasks = []
-      @statuses = []
-      @errors = []
       @position = 0
     end
     
-    def rollout
-      @direction = 1
+    def add_tasks( *tasks )
+      [*tasks].each do |task|
+        task.workdir = @workdir unless task.workdir
+      end
+      @tasks += [*tasks]
+    end
+    
+    alias_method :add_task, :add_tasks
+    
+    def rollout!
+      @direction = ROLLOUT
       run
     end
     
-    def rollback
-      @direction = -1
+    def rollback!
+      @direction = ROLLBACK
       run
     end
     
     def rollout_from( task )
       @position = @tasks.index(task)
-      rollout
+      rollout!
     end
     
     def rollback_from( task )
       @position = @tasks.index(task) - 1
-      rollback
+      rollback!
     end
     
-    def attempt
-      method = {1 => :rollout, -1 => :rollback}[@direction]
-      Dir.chdir(@workdir || Dir.pwd) do
-        @statuses << [method, *current_task.send(method)]
-      end
-      return latest_okay?
-    end
-    
-    def latest_okay?
-      status[1] == 0
-    end
-    
-    def errors
-      @statuses.select { |status| status[1] != 0 }
-    end
-    
-    def status
-      @statuses.last
+    def attempt( task )
+      method = {ROLLOUT => :rollout!, ROLLBACK => :rollback!}[@direction]
+      task.send(method)
     end
     
     def current_task
       @tasks[@position]
     end
     
-    def state
-      { :position => @position, 
-        :direction => @direction, 
-        :statuses => @statuses }
-    end
-    
     private
     
     def run
-      if @direction == 1
+      if @direction == ROLLOUT
         task_list = @tasks[@position..-1]
-      elsif @direction == -1
+      elsif @direction == ROLLBACK
         task_list = @tasks[0..@position + 1].reverse
       end
       task_list.each do |task|
         @position = @tasks.index(task)
-        unless attempt
+        unless attempt current_task
           fail
           break
         end
@@ -84,11 +71,11 @@ module Outback
     end
     
     def fail
-      case status[0]
-      when :rollout
+      case @direction
+      when ROLLOUT
         rollback_from current_task
-        raise TransactionError, "Could not rollout task #{current_task}, attempting rollback."
-      when :rollback
+        raise Error, "Could not rollout task #{current_task}, attempting rollback."
+      when ROLLBACK
         raise TransactionError, "Could not rollback task #{current_task}, aborting."
       else
         raise Error, "Unknown direction!"

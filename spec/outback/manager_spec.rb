@@ -5,106 +5,71 @@ describe Outback::Manager do
   
   before do
     @obm = Outback::Manager.new
-    @task1 = mock("task1", :name => "Task 1") 
-    @task2 = mock("task2", :name => "Task 2")
+    @task1 = mock("task1", :workdir => "/tmp")
+    @task2 = mock("task2", :workdir => nil)
+    @task1.stub!(:workdir=)
+    @task2.stub!(:workdir=)
+  end
+
+  it "should have a list of tasks" do
+    @obm.tasks.should be_a_kind_of(Enumerable)
+    @obm.should have(0).tasks
   end
   
-  describe "(empty)" do
-    
-    it "should have a list of tasks" do
-      @obm.tasks.should be_a_kind_of(Enumerable)
-      @obm.should have(0).tasks
-    end
-    
-    it "should have a rollout method" do
-      @obm.should respond_to(:rollout)
-    end
-    
-    it "should have a rollback method" do
-      @obm.should respond_to(:rollback)
-    end
-    
-    it "should add tasks to its list with standard array operations" do
-      @obm.should have(0).tasks
-      @obm.tasks << @task1
-      @obm.should have(1).tasks
-      @obm.tasks << @task2
-      @obm.should have(2).tasks
-    end
-    
+  it "should add a task to its list with #add_task" do
+    @obm.add_task(@task1)
+    @obm.should have(1).tasks
+    @obm.add_task(@task2)
+    @obm.should have(2).tasks
   end
   
+  it "should add multiple tasks to its list, in order, with #add_tasks" do
+    @obm.add_tasks(@task1, @task2, @task1)
+    @obm.should have(3).tasks
+    @obm.tasks[0].should == @task1
+    @obm.tasks[1].should == @task2
+    @obm.tasks[2].should == @task1
+  end
+
   describe "(with a few tasks)" do
     
     before do
-      @obm.tasks << @task1 << @task2
+      @obm.add_tasks(@task1, @task2)
     end
     
-    it "should call each task's rollout method on rollout (in order)" do
-      @task1.should_receive(:rollout).and_return(0)
-      @task2.should_receive(:rollout).and_return(0)
-      @obm.rollout
+    it "should call each task's #rollout! method, in order, on #rollout!" do
+      @task1.should_receive(:rollout!).and_return(true)
+      @task2.should_receive(:rollout!).and_return(true)
+      @obm.rollout!
     end
     
-    it "should call each task's rollback method on rollback (in reverse order)" do
-      @task2.should_receive(:rollback).and_return(0)
-      @task1.should_receive(:rollback).and_return(0)
-      @obm.rollback
+    it "should call each task's #rollback! method, in reverse order, on #rollback!" do
+      @task1.should_receive(:rollout!).and_return(true)
+      @task2.should_receive(:rollout!).and_return(true)
+      @obm.rollout!
     end
     
     it "should raise an Outback::Error if a rollout fails" do
-      @task1.stub!(:rollback)
-      @task1.should_receive(:rollout).and_return(1)
-      @task2.should_not_receive(:rollout)
-      @task2.should_not_receive(:rollback)
-      lambda { @obm.rollout }.should raise_error(Outback::Error)
+      @task1.stub!(:rollback!)
+      @task1.should_receive(:rollout!).and_return(false)
+      @task2.should_not_receive(:rollout!)
+      @task2.should_not_receive(:rollback!)
+      lambda { @obm.rollout! }.should raise_error(Outback::Error)
     end
     
-    it "should raise an Outback::Error if a rollback fails" do
-      @task2.should_receive(:rollback).and_return(1)
-      @task1.should_not_receive(:rollback)
-      lambda { @obm.rollback }.should raise_error(Outback::Error)
-    end
-    
-    it "should store the latest task's run direction (rollout, rollback), return code, stdout and stderr in #status" do
-      @task1.should_receive(:rollout).and_return([0, "A message", ""])
-      @task2.should_receive(:rollout).and_return([0, "Another message", ""])
-      @obm.rollout
-      @obm.status.should == [:rollout, 0, "Another message", ""]
-    end
-    
-    it "should store the latest task's status even if an earlier task raised an error." do
-      @task1.stub!(:rollback).and_return([0, "Getting rolled back", ""])
-      @task1.should_receive(:rollout).and_return([1, "", "Error message"])
-      @task2.should_not_receive(:rollout)
-      begin 
-        @obm.rollout
-      rescue Outback::Error
-        @obm.status.should == [:rollback, 0, "Getting rolled back", ""]
-      end
-    end
-    
-    it "should store any status messages with non-zero return codes in #errors" do
-      @task1.should_receive(:rollout).and_return([0, "All okay", ""])
-      @task2.should_receive(:rollout).and_return([1, "", "Error message"])
-      @task2.should_receive(:rollback).and_return([0, "Getting rolled back", ""])
-      @task1.should_receive(:rollback).and_return([3, "", "Error while rolling back"])
-      begin
-        @obm.rollout
-      rescue Outback::Error
-        @obm.should have(2).errors
-        @obm.errors[0].should == [:rollout, 1, "", "Error message"]
-        @obm.errors[1].should == [:rollback, 3, "", "Error while rolling back"]    
-      end
+    it "should raise an Outback::TransactionError if a rollback subsequently fails" do
+      @task2.should_receive(:rollback!).and_return(false)
+      @task1.should_not_receive(:rollback!)
+      lambda { @obm.rollback! }.should raise_error(Outback::TransactionError)
     end
     
     it "should rollback previously rolled-out tasks if a rollout fails" do
-      @task1.should_receive(:rollout).ordered.and_return([1, "", "Error message"])
-      @task2.should_not_receive(:rollout)
-      @task1.should_receive(:rollback).ordered
-      @task2.should_not_receive(:rollback)
+      @task1.should_receive(:rollout!).ordered.and_return(false)
+      @task2.should_not_receive(:rollout!)
+      @task1.should_receive(:rollback!).ordered
+      @task2.should_not_receive(:rollback!)
       begin 
-        @obm.rollout
+        @obm.rollout!
       rescue Outback::Error
       end
     end
@@ -113,13 +78,17 @@ describe Outback::Manager do
   describe "(with #workdir set)" do
     
     before do
-      @obm.tasks << Outback::ShellTask.new('pwd', 'pwd')
-      @obm.workdir = '/tmp'
+      @task1 = Outback::ShellTask.new("", "")
+      @task1.workdir = "/tmp"
+      @task2 = Outback::ShellTask.new("", "")
+      @obm.workdir = "/nonexistent"
+      @obm.add_tasks(@task1, @task2)
     end
     
-    it "should execute all tasks in the workdir" do
-      @obm.rollout
-      @obm.status[2] == "/tmp"
+    it "should set the workdir of each of its tasks if it is currently nil" do
+      @task1.workdir.should == "/tmp"
+      @task2.workdir.should == "/nonexistent"
     end
+    
   end
 end

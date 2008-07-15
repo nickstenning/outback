@@ -35,13 +35,13 @@ describe Outback::YAML do
     end
     it "should set the rollout_command to the first element of the YAML array" do
       manager = Outback::YAML.load(@yaml)
-      manager.tasks[0].rollout_command.should == "touch y"
-      manager.tasks[1].rollout_command.should == "touch x"
+      manager.tasks[0].rollout.should == "touch y"
+      manager.tasks[1].rollout.should == "touch x"
     end
     it "should set the rollback_command to the second element of the YAML array" do
       manager = Outback::YAML.load(@yaml)
-      manager.tasks[0].rollback_command.should == "rm y"
-      manager.tasks[1].rollback_command.should == "rm x"
+      manager.tasks[0].rollback.should == "rm y"
+      manager.tasks[1].rollback.should == "rm x"
     end
   end
 end

@@ -1,7 +1,5 @@
 require 'outback/manager'
-require 'outback/task_helper'
-require 'outback/task'
-require 'outback/command'
+require 'outback/shelltask'
 require 'outback/yaml'
 
 module Outback
