@@ -5,7 +5,7 @@ module Outback
   
   class ShellTask
   
-    attr_accessor :rollout, :rollback, :workdir
+    attr_accessor :rollout, :rollback, :workdir, :name
     attr_reader :result, :errors, :exit_code
     
     def initialize(out, back)

@@ -6,5 +6,6 @@ module Outback
   
   class Error < RuntimeError; end
   class TransactionError < Error; end
+  class DuplicateNamedTaskError < Error; end
   
 end

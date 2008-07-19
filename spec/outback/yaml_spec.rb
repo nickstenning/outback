@@ -6,11 +6,11 @@ describe Outback::YAML do
   before do
     @yaml =<<-EOM.gsub(/^\s{4}/, '')
     -
-      - touch y
-      - rm y
+      out: touch y
+      back: rm y
     -
-      - touch x
-      - rm x
+      out: touch x
+      back: rm x
     EOM
     @file = '/tmp/outback_yaml_spec_tmp'
     File.open(@file, 'w') { |f| f.puts @yaml }

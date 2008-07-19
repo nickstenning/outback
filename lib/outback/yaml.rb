@@ -6,18 +6,15 @@ module Outback
       manager = Manager.new
       tasks = ::YAML.load(yaml_string)
       tasks.each do |task|
+        task = [task['out'], task['back']]
         manager.tasks << Outback::ShellTask.new(*task)
       end
       return manager
     end
     
     def self.load_file( yaml_file )
-      manager = Manager.new
-      tasks = ::YAML.load_file(yaml_file)
-      tasks.each do |task|
-        manager.tasks << Outback::ShellTask.new(*task)
-      end
-      return manager
+      yaml = File.read( yaml_file )
+      load( yaml )
     end
               
   end

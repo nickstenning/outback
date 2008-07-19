@@ -13,17 +13,31 @@ module Outback
   
     def initialize
       @tasks = []
+      @names = {}
       @position = 0
     end
     
     def add_tasks( *tasks )
       [*tasks].each do |task|
         task.workdir = @workdir unless task.workdir
+        
+        if task.name
+          if @names.has_key?(task.name)
+            raise DuplicateNamedTaskError, "Cannot add a named task more than once!"
+          else
+            @names[task.name] = @tasks.length
+          end
+        end
+        
+        @tasks << task
       end
-      @tasks += [*tasks]
     end
     
     alias_method :add_task, :add_tasks
+    
+    def find_task( name )
+      @tasks[@names[name]]
+    end
     
     def rollout!
       @direction = ROLLOUT

@@ -5,10 +5,9 @@ describe Outback::Manager do
   
   before do
     @obm = Outback::Manager.new
-    @task1 = mock("task1", :workdir => "/tmp")
-    @task2 = mock("task2", :workdir => nil)
-    @task1.stub!(:workdir=)
-    @task2.stub!(:workdir=)
+    @task1 = mock("task1", :workdir => "/tmp", :name => "task1", :null_object => true)
+    @task2 = mock("task2", :workdir => nil, :name => nil, :null_object => true)
+    @task3 = mock("task3", :workdir => nil, :name => "task3", :null_object => true)
   end
 
   it "should have a list of tasks" do
@@ -24,13 +23,29 @@ describe Outback::Manager do
   end
   
   it "should add multiple tasks to its list, in order, with #add_tasks" do
-    @obm.add_tasks(@task1, @task2, @task1)
+    @obm.add_tasks(@task1, @task2, @task3)
     @obm.should have(3).tasks
     @obm.tasks[0].should == @task1
     @obm.tasks[1].should == @task2
-    @obm.tasks[2].should == @task1
+    @obm.tasks[2].should == @task3
   end
-
+  
+  it "should not allow more than one task with the same name" do
+    lambda { @obm.add_tasks(@task1, @task1) }.should raise_error(Outback::DuplicateNamedTaskError)
+    lambda { @obm.add_tasks(@task1, @task2, @task1) }.should raise_error(Outback::DuplicateNamedTaskError)
+    lambda { @obm.add_tasks(@task1, @task3, @task3) }.should raise_error(Outback::DuplicateNamedTaskError)
+  end
+  
+  it "should allow the same task twice if unnamed" do
+    lambda { @obm.add_tasks(@task1, @task2, @task2) }.should_not raise_error
+  end
+  
+  it "should return the named task with #find_task(name)" do
+    @obm.add_tasks(@task1, @task2, @task3)
+    @obm.find_task('task1').should == @task1
+    @obm.find_task('task3').should == @task3
+  end
+  
   describe "(with a few tasks)" do
     
     before do

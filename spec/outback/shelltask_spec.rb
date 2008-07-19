@@ -6,6 +6,12 @@ describe Outback::ShellTask do
     @task = Outback::ShellTask.new("out", "back")
   end
   
+  it "should have an attr_accessor for @name" do
+    @task.name.should be_nil
+    @task.name = "Henry"
+    @task.name.should == "Henry"
+  end
+  
   it "should use the first parameter to the rollout command" do
     @task.rollout.should == "out"
   end
