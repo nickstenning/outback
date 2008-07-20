@@ -1,6 +1,7 @@
 require 'outback/manager'
 require 'outback/shelltask'
 require 'outback/yaml'
+require 'outback/runner'
 
 module Outback
   
