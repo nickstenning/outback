@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = %q{outback}
-  s.version = "0.0.3"
+  s.version = "0.0.4"
  
   s.specification_version = 2 if s.respond_to? :specification_version=
  
@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.authors = ["Nick Stenning"]
   s.date = %q{2008-07-14}
   s.email = ["nick@whiteink.com"]
-  s.files = ["lib/outback/manager.rb", "lib/outback/shelltask.rb", "lib/outback/yaml.rb", "lib/outback/runner.rb", "lib/outback.rb", "outback.gemspec", "spec/outback/manager_spec.rb", "spec/outback/shelltask_spec.rb", "spec/outback/yaml_spec.rb", "spec/outback/runner_spec.rb", "spec/spec_helper.rb", "spec/fixtures/example.yml"]
+  s.files = ["lib/outback/manager.rb", "lib/outback/task.rb", "lib/outback/task_helper.rb", "lib/outback.rb", "outback.gemspec", "Rakefile", "README.markdown", "spec/fixtures/example_manager.rb", "spec/outback/manager_spec.rb", "spec/outback/task_helper_spec.rb", "spec/outback/task_spec.rb", "spec/spec_helper.rb"] 
   s.has_rdoc = true
   s.homepage = %q{http://github.com/nickstenning/outback}
   s.require_paths = ["lib"]

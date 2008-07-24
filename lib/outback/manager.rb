@@ -1,104 +1,94 @@
 require 'yaml'
+require 'observer'
 
 module Outback
   
   class Manager
     
+    include Observable
+    
     ROLLOUT = 1
     ROLLBACK = -1
     
-    attr_reader :tasks, :position
-    attr_accessor :workdir
-    attr_writer :watcher
+    attr_reader :tasks
+    attr_accessor :direction, :position, :workdir, :cache
   
     def initialize
       @tasks = []
-      @names = {}
+      @cache = {}
       @position = 0
+      @direction = 1
     end
     
     def add_tasks( *tasks )
-      [*tasks].each do |task|
-        task.workdir = @workdir unless task.workdir
-        
-        if task.name
-          if @names.has_key?(task.name)
-            raise DuplicateNamedTaskError, "Cannot add a named task more than once!"
-          else
-            @names[task.name] = @tasks.length
-          end
-        end
-        
-        @tasks << task
-      end
+      @tasks += tasks
     end
     
-    alias_method :add_task, :add_tasks
-    
-    def find_task( name )
-      @tasks[@names[name]]
+    def add_task( task=nil, &block )
+      if block_given?
+        task = Outback::Task.new(&block)
+      end
+      add_tasks( task ) if task
     end
     
     def rollout!
       @direction = ROLLOUT
-      run
+      run_all
     end
     
     def rollback!
       @direction = ROLLBACK
-      run
+      run_all
     end
     
-    def rollout_from( task )
-      @position = @tasks.index(task)
-      rollout!
-    end
-    
-    def rollback_from( task )
-      @position = @tasks.index(task) - 1
-      rollback!
-    end
-    
-    def attempt( task )
-      method = {ROLLOUT => :rollout!, ROLLBACK => :rollback!}[@direction]
-      ret = task.send(method)
-      @watcher.notify(task) if @watcher
-      return ret
-    end
-    
-    def current_task
-      @tasks[@position]
-    end
-    
-    private
-    
-    def run
-      if @direction == ROLLOUT
-        task_list = @tasks[@position..-1]
-      elsif @direction == ROLLBACK
-        task_list = @tasks[0..@position + 1].reverse
-      end
-      task_list.each do |task|
-        @position = @tasks.index(task)
-        unless attempt current_task
-          fail
-          break
+    def run_all
+      cache.delete(:errors)
+      
+      tasks_to_run.each do |task|
+        temp = cache.dup
+        begin
+          run task, @direction
+        rescue => e
+          self.cache = temp
+          cache[:errors] ||= []
+          cache[:errors] << e
+          break false
         end
+        @position += @direction
+        changed
+        notify_observers(state, cache)
       end
     end
     
-    def fail
-      case @direction
-      when ROLLOUT
-        #rollback_from current_task
-        raise Error, "Could not rollout task #{current_task}, attempting rollback."
-      when ROLLBACK
-        raise TransactionError, "Could not rollback task #{current_task}, aborting."
-      else
-        raise Error, "Unknown direction!"
+    def tasks_to_run
+      if @direction == ROLLOUT
+        @tasks[@position..-1]
+      elsif @direction == ROLLBACK
+        @tasks[0...@position].reverse
       end
     end
     
+    def state
+      { :position => @position,
+        :direction => @direction
+      }
+    end
+    
+    def restore_state( state )
+      @position = state[:position] || @position
+      @direction = state[:direction] || @direction
+      self
+    end
+        
+    def run( task, direction=1 )
+      method = { ROLLOUT => :rollout!, ROLLBACK => :rollback! }[direction]
+    
+      task.send(method, task_helper)
+    end
+    
+    def task_helper
+      @task_helper ||= TaskHelper.new(self)
+    end
   end
 
 end

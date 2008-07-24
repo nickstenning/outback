@@ -1,12 +1,10 @@
 require 'outback/manager'
-require 'outback/shelltask'
-require 'outback/yaml'
-require 'outback/runner'
+require 'outback/task_helper'
+require 'outback/task'
 
 module Outback
   
   class Error < RuntimeError; end
   class TransactionError < Error; end
-  class DuplicateNamedTaskError < Error; end
   
 end
